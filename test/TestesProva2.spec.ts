@@ -1,0 +1,205 @@
+import pactum from 'pactum';
+import { StatusCodes } from 'http-status-codes';
+import { SimpleReporter } from '../simple-reporter';
+
+describe('Futebol API', () => {
+  const p = pactum;
+  const rep = SimpleReporter;
+  const baseUrl = 'https://apifutsimples.onrender.com';
+
+  p.request.setDefaultTimeout(30000);
+
+  beforeAll(() => p.reporter.add(rep));
+
+  afterAll(() => p.reporter.end());
+
+  describe('HEALTH CHECK', () => {
+    it('deve verificar se a API está funcionando', async () => {
+      await p.spec().get(`${baseUrl}/health`).expectStatus(StatusCodes.OK);
+    });
+  });
+
+  describe('JOGADORES', () => {
+    it('deve listar todos os jogadores', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/jogadores`)
+        .expectStatus(StatusCodes.OK);
+    });
+
+    it('deve listar jogadores filtrando por time', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/jogadores`)
+        .withQueryParams('time', 'Corinthians')
+        .expectStatus(StatusCodes.OK);
+    });
+
+    it('deve criar um novo jogador', async () => {
+      await p
+        .spec()
+        .post(`${baseUrl}/api/jogadores`)
+        .withJson({
+          nome: 'Gabriel Teste',
+          posicao: 'Atacante',
+          time: 'Santos',
+          numero_camisa: 99,
+          idade: 25,
+          gols: 5
+        })
+        .expectStatus(StatusCodes.CREATED)
+        .expectJsonLike({
+          nome: 'Gabriel Teste',
+          posicao: 'Atacante',
+          time: 'Santos',
+          numero_camisa: 99,
+          idade: 25,
+          gols: 5
+        });
+    });
+
+    it('deve buscar um jogador por id', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/jogadores/1`)
+        .expectStatus(StatusCodes.OK)
+        .expectJsonLike({
+          id: 1,
+          nome: 'Pedro Silva'
+        });
+    });
+
+    it('deve retornar 404 ao buscar jogador inexistente', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/jogadores/99999`)
+        .expectStatus(StatusCodes.NOT_FOUND);
+    });
+
+    it('deve retornar 400 ao criar jogador sem campos obrigatórios', async () => {
+      await p
+        .spec()
+        .post(`${baseUrl}/api/jogadores`)
+        .withJson({
+          nome: 'Jogador inválido'
+        })
+        .expectStatus(StatusCodes.BAD_REQUEST);
+    });
+  });
+
+  describe('ESTÁDIOS', () => {
+    it('deve listar todos os estádios', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/estadios`)
+        .expectStatus(StatusCodes.OK);
+    });
+
+    it('deve filtrar estádios por cidade', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/estadios`)
+        .withQueryParams('cidade', 'São Paulo')
+        .expectStatus(StatusCodes.OK);
+    });
+
+    it('deve criar um novo estádio', async () => {
+      await p
+        .spec()
+        .post(`${baseUrl}/api/estadios`)
+        .withJson({
+          nome: `Estadio Teste ${Date.now()}`,
+          cidade: 'Sao Paulo',
+          capacidade: 50000
+        })
+        .expectStatus(StatusCodes.CREATED);
+    });
+
+    it('deve buscar um estádio por id', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/estadios/1`)
+        .expectStatus(StatusCodes.OK)
+        .expectJsonLike({
+          id: 1
+        });
+    });
+  });
+
+  describe('PARTIDAS', () => {
+    it('deve listar todas as partidas', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/partidas`)
+        .expectStatus(StatusCodes.OK);
+    });
+
+    it('deve filtrar partidas por status', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/partidas`)
+        .withQueryParams('status', 'encerrada')
+        .expectStatus(StatusCodes.OK);
+    });
+
+    it('deve criar uma nova partida', async () => {
+      await p
+        .spec()
+        .post(`${baseUrl}/api/partidas`)
+        .withJson({
+          time_casa: 'Flamengo',
+          time_visitante: 'Palmeiras',
+          data_partida: '2026-10-01',
+          estadio_id: 1,
+          gols_casa: 2,
+          gols_visitante: 1,
+          status: 'encerrada'
+        })
+        .expectStatus(StatusCodes.CREATED)
+        .expectJsonLike({
+          time_casa: 'Flamengo',
+          time_visitante: 'Palmeiras',
+          gols_casa: 2,
+          gols_visitante: 1,
+          status: 'encerrada'
+        });
+    });
+
+    it('deve buscar uma partida por id', async () => {
+      await p
+        .spec()
+        .get(`${baseUrl}/api/partidas/1`)
+        .expectStatus(StatusCodes.OK)
+        .expectJsonLike({
+          id: 1
+        });
+    });
+
+    it('deve atualizar somente o placar da partida', async () => {
+      await p
+        .spec()
+        .put(`${baseUrl}/api/partidas/1/placar`)
+        .withJson({
+          gols_casa: 2,
+          gols_visitante: 1,
+          status: 'encerrada'
+        })
+        .expectStatus(StatusCodes.OK)
+        .expectJsonLike({
+          gols_casa: 2,
+          gols_visitante: 1,
+          status: 'encerrada'
+        });
+    });
+
+    it('deve retornar 400 ao criar partida sem campos obrigatórios', async () => {
+      await p
+        .spec()
+        .post(`${baseUrl}/api/partidas`)
+        .withJson({
+          time_casa: 'Flamengo'
+        })
+        .expectStatus(StatusCodes.BAD_REQUEST);
+    });
+  });
+});
